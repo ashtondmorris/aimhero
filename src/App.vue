@@ -653,6 +653,7 @@ export default {
 
     // Handlers
     clickedTarget(e) {
+      e.target.style["visibility"] = "hidden";
       console.log("pressed", e);
     },
 
