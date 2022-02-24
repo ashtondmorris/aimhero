@@ -12,36 +12,15 @@
     "
   >
     <div style="position: absolute; overflow: hidden">
-      <!-- <audio class="gunshot" src="src/M416.mp3"></audio> -->
       <audio id="songaudio" class="midi" src="src/nocturne_midi.mid"></audio>
     </div>
-    <!-- <div
-      id="bullet-holes"
-      class="bullet-holes"
-      style="position: absolute; height: 100%; width: 100%; overflow: hidden"
-    ></div> -->
-    <!-- <div
-      style="
-        position: absolute;
-        height: 100%;
-        width: 100%;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 4;
-      "
-    >
-      <div class="cursor rounded">
-        <div class="inner-dot"></div>
-      </div>
-    </div> -->
+
     <div style="position: absolute; left: 0" class="no-select">
       <v-btn @click="loadObjects">Load Objects</v-btn>
       <v-btn @click="startGame">Start New</v-btn>
+      <v-btn @click="playSong">Play Song</v-btn>
       <div>Score: {{ points }} / {{ quantity }}</div>
-      <!-- <div>
-        Bullets: {{ bulletsInClip }} /
-        {{ clipSize }}
-      </div> -->
+
       <input type="file" name="songFile" id="songFile" />
     </div>
     <div id="board" class="board">
@@ -81,17 +60,14 @@
 </template>
 
 <script>
-import {
-  noteTimeline,
-  // fadeBulletHole
-} from "./animate";
-import { midi } from "./midi";
+import { noteTimeline } from "./animate";
+import { MyMidiPlayer } from "./midi";
 
 export default {
   data() {
     return {
       midiUrl: "src/nocturne_midi.mid",
-      midiPlayer: null,
+      midiPlayer: new MyMidiPlayer(),
       playing: false,
       pageSize: 5, // size of page of created objects. must be at least 20.
       currentTargetIndex: 0, // index of current target. This is the target to click next, and the target that will be removed from view next.
@@ -162,16 +138,6 @@ export default {
     };
   },
   watch: {
-    // mouseDown() {
-    //   let x = setInterval(() => {
-    //     if (this.mouseDown) {
-    //       this.fire();
-    //     } else {
-    //       clearInterval(x);
-    //     }
-    //   }, 86); // mimic M416 fire rate
-    // },
-
     divisions() {
       console.log("divisions updated", this.divisions);
     },
@@ -358,21 +324,18 @@ export default {
       });
     },
   },
-  mounted() {
+  created() {
     this.initialize();
   },
   methods: {
-    initialize() {
-      this.midiPlayer = midi(this.midiUrl);
-      // this.cursorRounded = document.querySelector(".rounded");
-      // this.cursorRounded.style["pointer-events"] = "none";
-      // this.cursorRounded.style["z-index"] = 1;
+    async initialize() {
+      console.log("set player...");
+      await this.midiPlayer.setPlayer();
+      console.log("set midi...");
+      await this.midiPlayer.setMidi(this.midiUrl);
+      console.log("done with that stuff...");
+
       this.createdObjects = [];
-      // this.currentTargetMax = this.duration / this.stagger;
-      // window.addEventListener("mousemove", this.moveCursor);
-      // window.addEventListener("drag", this.moveCursor);
-      // window.addEventListener("mousedown", this.mousedownHandler);
-      // window.addEventListener("mouseup", this.mouseUpHandler);
       window.addEventListener("keydown", this.keyDownHandler);
       window.addEventListener("keyup", this.keyUpHandler);
       this.loadSongXML();
@@ -434,57 +397,21 @@ export default {
     // Actions
     startGame() {
       if (this.song) {
-        console.log("start game");
         this.finished = false;
         this.points = 0;
         this.bulletsInClip = this.clipSize;
         this.startAnimations();
-        // this.updateTargetList(); // todo: reimplement after we get timing set properly
       } else {
-        console.log("no song");
+        console.log("no song found");
       }
     },
 
-    reload() {
-      this.reloading = true;
-      window.setTimeout(() => {
-        this.bulletsInClip = this.clipSize;
-        this.reloading = false;
-      }, 1000);
+    playSong() {
+      console.log("is playing?", this.midiPlayer.player.isPlaying());
+      // this.midiPlayer.play();
+      document.querySelector("#songaudio").play();
+      console.log("is playing?", this.midiPlayer.player.isPlaying());
     },
-
-    // fire() {
-    //   this.mouseDown = true;
-    //   let mouseY = this.lastY - 8;
-    //   let mouseX = this.lastX - 8;
-    //   let height = this.hitRadius * 2;
-    //   let width = this.hitRadius * 2;
-    //   let main;
-    //   let bulletHole;
-
-    //   if (this.bulletsInClip > 0 && !this.reloading) {
-    //     // this.playGunShot();
-    //     main = document.getElementById("bullet-holes");
-    //     bulletHole = document.createElement("div");
-    //     bulletHole.setAttribute(
-    //       "style",
-    //       "z-index: 5; background-color: black; border-radius: 50%; pointer-events: none; position: absolute; left: " +
-    //         mouseX +
-    //         "px; top: " +
-    //         mouseY +
-    //         "px; height:" +
-    //         height +
-    //         "px; width:" +
-    //         width +
-    //         "px;"
-    //     );
-    //     bulletHole.setAttribute("class", "bullet-hole");
-    //     main.appendChild(bulletHole);
-    //     this.bulletsInClip--;
-    //     this.checkIsHit(mouseX, mouseY);
-    //     fadeBulletHole(bulletHole, this.fadeBulletHoleCallback);
-    //   }
-    // },
 
     startAnimations() {
       console.log("start animations");
@@ -775,10 +702,8 @@ export default {
 
     // Callbacks
     async animationCompleteCallback() {
-      if (!this.playing) {
-        if (this.midiPlayer) {
-          this.midiPlayer.play();
-        }
+      if (!this.midiPlayer?.player?.isPlaying()) {
+        this.midiPlayer.play();
         this.playing = true;
       }
 
